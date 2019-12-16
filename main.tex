@@ -3,11 +3,80 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage[magyar]{babel}
+\usepackage{cite}
+\usepackage{graphicx}
+\graphicspath{ {./figures/} }
 \title{Májszegmentáció konvolúciós neurális hálók segítségével}
-\author{Kiss Benedek}
+\author{Kiss Benedek Gábor\and Németh Zoltán\and Szűcs Tamás }
 \begin{document}
 	\maketitle
-	\section*{Összefoglaló}
-	\section*{}
+	\section*{Bevezető}
+	Az orvosi tudományterületen egyre nagyobb mértékben kezdenek el különböző Deep Learning hálózatokat alkalmazni.\cite{2019arXiv190903029S} A félév elkészített CT felvételeken kellett májat szegmentálni.	A téma kidolgozása során implementálásra került egy saját python modul, ami egy paraméterezhető V-Net architektúrát valósít meg, ezen kívül egy három dimenziós augmentációt megvalósító python modul.
+	
+	
+	\section*{Háttér és alkalmazott módszerek}
+	Ez a szekció részletezi a félév során végrehajtott munkát. A  a pontos megvalósítások elérhetőek a \dots címen.
+	
+	\subsection*{Adatok}
+	Az adathalmaz a Semmelweis Egyetem által biztosított 62 Nifti formátumú CT felvétel és az ezekhez tartozó maszkok. Ezek a fájlok átlagosan 30, de minimum 21, 512$\times$512 pixeles szeletet tartalmaztak. A kapott adathalmaz a Z-tengely menti eltérések kivételével normalizálva volt, nagyjából a tüdő alsó részétől, a medence felső részéig tartott. A maszkon a fehérrel jelölt területen volt a máj található, a feketével jelölt terület pedig a többi szervet jelölte.
+	\subsection*{Az adatok augmentálása}
+	\dots
+	\subsection*{Hálózat architektúra}
+		\begin{figure}
+		\centering
+		\includegraphics[width=0.7\linewidth]{"VNetDiagram"}
+		\caption[A V-Net felépítése]{}
+		\label{fig:vnetdiagram}
+	\end{figure}
+	Hálózatnak az úgynevezett V-Net \cite{2016arXiv160604797M} architektúrát választottuk. A V-Net az U-Net\cite{2015arXiv150504597R} által inspirált, orvosi felhasználásra szánt, 3 dimenziós bemeneti mátrixokkal operáló neurális háló.  A háló architektúrájának fő célja a hagyományoshoz képest elenyésző mennyiségű adattal, gyorsan konvergálva, a lehető legpontosabb predikciókat adni. U-Nettel szemben legfőbb fejlesztése, hogy lokalitást már nem csak síkban hanem térben is képes figyelem venni, ennek köszönhetően hatékonyabban, és pontosabban dolgozni. Mivel a rendelkezésünkre álló adat térbeli volt, így nem láttuk akadályát ezt alkalmazni.
+	
+	\subsection* {A hálózat tanítása}
+	\subsubsection*{Használt Optimizer}
+	A hálózat optimalizálásához az Adam\cite{2014arXiv1412.6980K} algoritmust használtuk, mivel az általunk használt szakirodalom\cite{AdamTutorial1} ezt javasolta.
+	
+	Az Adam optimizer kombinálja az AdaGrad és RMSProp algoritmusokat, azaz paraméterenként különböző tanulási rátát használ, és ezeket a rátákat a nem régi gradiensek mérete alapján változtatja. Ezzel nagyobb hatékonyságot érve el mint bármelyik alternatívája, ahogyan a mellékelt ábrán is látható.
+	\subsubsection*{Lehetséges költségfüggvények}
+	\paragraph{Sørensen–Dice tényező}
+	\begin{equation}
+	D = \frac {2*|{A \cap B}|}{|A|+|B|}
+	\end{equation}
+	A V-Net eredeti specifikációjában\cite{2016arXiv160604797M} ezt a loss algoritmust alkalmazták, és ez alapján jobb eredményeket értek el mint az alternatíváknál.
+
+	Magát a tényezőt módosítás nélkül költségfüggvényként használni nem lehet, mivel a hálóban költségfüggvény minimalizálás történik, de ezt egyszerűen lehet orvosolni \(L = 1-D\) használatával.
+	\paragraph{Hausdorff távolság}
+	\begin{equation}
+	{d}_{H}(A,B)  = \max\left\{ \sup_{a\in A} \inf_{b\in B} {d}(a,b),\sup_{b\in B} \inf_{a\in A}{d}(a,b)\right\}
+	\end{equation}
+	A Hausdorff-távolság is használható költségfüggvényként, de mivel az eredeti specifikációban\cite{2016arXiv160604797M} csak kiértékelési szempontként szerepelt mi is így használtuk.
+	\section*{Eredmények}
+	\subsection*{Kiértékelési szempontok}
+	Kiértékelési szempontként a már előbb említett Loss funkciókon kívül figyelembe vettünk még további metrikákat is, amiknek alkalmazása nem lett volna megfelelő költségfüggvényként.
+	\paragraph{Intersection over Union}
+	\begin{equation}
+	IoU = \frac{A\cap B} {A \cup B}
+	\end{equation}
+	Nagyon hasonló működésben a Dice tényezőhöz, de jóval durvábban értékeli a hibákat. Sokkal kissebb probléma a jelen felhasználásnál ha máj mellett még minimális mennyiségű "test" is belekerül a szegmentációba, mintha máj maradna ki.
+	\paragraph{Pixel Accuracy}
+		\begin{equation}
+	accuracy= \frac{TP+TN}{TP+TN+FP+FN}
+	\end{equation}	\begin{figure}
+		\centering
+		\includegraphics[width=\linewidth]{"VNetDiagram"}
+		\caption[A V-Net felépítése]{}
+		\label{fig:vnetdiagram}
+	\end{figure}
+	Ugyan fontos metrika kiértékelésnél, költségfüggvényként való alkalmazása lehetetlen, mivel ha a két állapot kardinalitása közötti eltérés nagy a hálózat lokális minimumba kerül.
+	\subsection*{Kiértékelt adatok}
+	\dots
+	\subsection{Eredmények értékelése}
+	\section*{Tanulságok}
+	\subsection*{Elkövetett hibák}
+	\subsubsection*{Implementálás}
+	A téma kidolgozása során implementálásra került egy saját python modul, ami egy paraméterezhető V-Net architektúrát valósít meg. Ez volt az első alkalom amikor mások álltal használható API felület kialakítására volt szükség. Többszörös javítás után is voltak még olyan részek amik nehezen érthetőek, nem jól dokumentáltak voltak, esetleg később derült ki, hogy adott funkcióra szükség lett volna.
+	\subsection*{Hardware igények}
+	A projekt megvalósítása során rendszeresen ütköztünk hardware problémákba, sokszor nem sikerült az összes szökséges adatot a videó kártya memóriájában tartani, vagy még videókártyával együtt is sokáig tartott a hálózat tanítása. Ezek a körülmények indokolták az augmentálás és a képbetöltési pipeline létrehozását, és párhuzamosítását, hogy se a tanítási sebesség kárára ne menjen, se ne kelljen az egészet egyszerre RAM memóriában tartani.
+	\section{További Kutátsi lehetőségek}
+	\bibliography{bibliography}{}
+	\bibliographystyle{ieeetr}
 	
 \end{document}
